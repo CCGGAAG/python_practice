@@ -12,7 +12,7 @@ class CopyWallpaper:
         """
         类的初始化，两个地址必需传递为本地电脑的绝对路径
         :param steam_url: wallpaper的数据文件夹，例如：D:/**/Steam/steamapps/workshop/content/431960
-        :param copy_dir:  你需要存储文件的地址
+        :param copy_dir:  你要转移存储文件的地址
         """
         self.steam_url = steam_url
         self.copy_dir = copy_dir
@@ -99,25 +99,27 @@ class CopyWallpaper:
         list_pkg = [y for y in file_list if ".pkg" == os.path.splitext(y)[1]]
         return list_mp4, list_pkg
 
-    def start_get_wallpaper_file(self, pkg_only=False, mp4_only=False, new_file_only=True):
+    def start_get_wallpaper_file(self, pkg_only=False, mp4_only=False, new_file_only=False):
         """
         一键获取所有wallpaper文件
+        :param pkg_only: 是否获取pkg图片文件
+        :param mp4_only: 是否获取视频文件
+        :param new_file_only: 是否仅获取新订阅的文件
         :return:
         """
         whole_file_list = self.get_file_list(self.steam_url)
         if new_file_only:
             self.init_installed_file_list()
             with open("./repkg/file_path_list.yaml", 'rb') as f:
-                file_path_list = yaml.load(f, Loader=yaml.FullLoader)
+                path_list = yaml.load(f, Loader=yaml.FullLoader)
             with open("./repkg/md5_list.yaml", 'rb') as f:
                 md5_list = yaml.load(f, Loader=yaml.FullLoader)
-            update_file_list = [i for i in whole_file_list if i not in file_path_list and self.get_md5(i) not in md5_list]
+            update_file_list = [i for i in whole_file_list if i not in path_list and self.get_md5(i) not in md5_list]
             print(update_file_list)
         else:
             update_file_list = whole_file_list
         list_mp4, list_pkg = self.split_list(update_file_list)
         if pkg_only:
-            # [j for j in list_pkg if self.get_md5(j) not in md5_list]
             self.get_repkg_img(list_pkg)
         if mp4_only:
             self.file_copy(list_mp4)
@@ -126,14 +128,20 @@ class CopyWallpaper:
 
     @staticmethod
     def get_md5(filename):
-        m = hashlib.md5()
-        m_file = open(filename, "rb")
-        m.update(m_file.read())
-        m_file.close()
-        md5_value = m.hexdigest()
+        """
+        获取文件md5值
+        :param filename: 文件路径
+        :return: md5值
+        """
+        md5_handle = hashlib.md5()
+        md5_file = open(filename, "rb")
+        md5_handle.update(md5_file.read())
+        md5_file.close()
+        md5_value = md5_handle.hexdigest()
         return md5_value
 
     def init_installed_file_list(self):
+        """初始化已经订阅的所有壁纸信息，并保存起来"""
         whole_file_list = self.get_file_list(self.steam_url)
         if "file_path_list.yaml" not in os.listdir("./repkg"):
             print("新建file_path文件")
@@ -155,12 +163,16 @@ class CopyWallpaper:
 
 if __name__ == '__main__':
     test = CopyWallpaper("D:/Program Files (x86)/Steam/steamapps/workshop/content/431960", "D:/test")
-    # test = CopyWallpaper("D:/迅雷下载/新建文件夹", "D:/迅雷下载/新建文件夹")
     # 全部类型拷贝
     # test.start_get_wallpaper_file(pkg_only=True, mp4_only=True)
+
     # 仅图片类型拷贝
-    test.start_get_wallpaper_file(pkg_only=True)
+    # new_file_only项是仅拷贝新订阅的壁纸文件，需要先把本地已经订阅的壁纸统计一下：init_installed_file_list
+    # 然后再运行获取壁纸文件命令时，就会跳过这些已经记录的壁纸文件
+    # test.start_get_wallpaper_file(pkg_only=True, new_file_only=True)
+
     # 仅视频类型拷贝
     # test.start_get_wallpaper_file(mp4_only=True)
-    # 初始化不拷贝文件
+
+    # 初始化不拷贝文件（已经订阅的壁纸）
     # test.init_installed_file_list()
