@@ -1,6 +1,9 @@
 # -*- coding:utf-8 -*-
 import os
 import shutil
+import yaml
+import hashlib
+import random
 
 
 class CopyWallpaper:
@@ -31,6 +34,8 @@ class CopyWallpaper:
             if "dispose" not in os.listdir(pkg_path):
                 os.makedirs(pkg_path + "/dispose")
             self.file_copy([i], "./repkg/dispose")
+            print("-----------------------------------------------------------")
+            print("pkg文件%s" % i)
             pkg_name = i[str(i).rfind("/") + 1:]
             cmd_line = "%s: && cd %s && RePKG.exe extract -o ./dispose ./dispose/%s" % (base_driver, pkg_path, pkg_name)
             os.system(cmd_line)
@@ -51,7 +56,7 @@ class CopyWallpaper:
             copy_file_list = os.listdir(copy_dir)
             file_name = i[str(i).rfind("/") + 1:]
             if file_name in copy_file_list:
-                new_name = str(i).replace(file_name, ("重复" + file_name))
+                new_name = str(i).replace(file_name, ("重复%s" % random.randint(10000, 19999) + file_name))
                 os.rename(i, new_name)
                 shutil.copy(new_name, copy_dir)
                 print("拷贝文件：%s" % new_name)
@@ -94,27 +99,68 @@ class CopyWallpaper:
         list_pkg = [y for y in file_list if ".pkg" == os.path.splitext(y)[1]]
         return list_mp4, list_pkg
 
-    def start_get_wallpaper_file(self, pkg_only=False, mp4_only=False):
+    def start_get_wallpaper_file(self, pkg_only=False, mp4_only=False, new_file_only=True):
         """
         一键获取所有wallpaper文件
         :return:
         """
         whole_file_list = self.get_file_list(self.steam_url)
-        list_mp4, list_pkg = self.split_list(whole_file_list)
-        if pkg_only:
-            self.get_repkg_img(list_pkg)
-        elif mp4_only:
-            self.file_copy(list_mp4)
+        if new_file_only:
+            self.init_installed_file_list()
+            with open("./repkg/file_path_list.yaml", 'rb') as f:
+                file_path_list = yaml.load(f, Loader=yaml.FullLoader)
+            with open("./repkg/md5_list.yaml", 'rb') as f:
+                md5_list = yaml.load(f, Loader=yaml.FullLoader)
+            update_file_list = [i for i in whole_file_list if i not in file_path_list and self.get_md5(i) not in md5_list]
+            print(update_file_list)
         else:
+            update_file_list = whole_file_list
+        list_mp4, list_pkg = self.split_list(update_file_list)
+        if pkg_only:
+            # [j for j in list_pkg if self.get_md5(j) not in md5_list]
             self.get_repkg_img(list_pkg)
+        if mp4_only:
             self.file_copy(list_mp4)
+        if not pkg_only and not mp4_only:
+            print("请设置拷贝图片还是视频")
+
+    @staticmethod
+    def get_md5(filename):
+        m = hashlib.md5()
+        m_file = open(filename, "rb")
+        m.update(m_file.read())
+        m_file.close()
+        md5_value = m.hexdigest()
+        return md5_value
+
+    def init_installed_file_list(self):
+        whole_file_list = self.get_file_list(self.steam_url)
+        if "file_path_list.yaml" not in os.listdir("./repkg"):
+            print("新建file_path文件")
+            fd = open("./repkg/file_path_list.yaml", mode="w", encoding="utf-8")
+            fd.close()
+            data = whole_file_list
+            fw = open("./repkg/file_path_list.yaml", 'a', encoding='utf-8')
+            yaml.dump(data, fw)
+            fw.close()
+        if "md5_list.yaml" not in os.listdir("./repkg"):
+            print("新建md5文件")
+            fd = open("./repkg/md5_list.yaml", mode="w", encoding="utf-8")
+            fd.close()
+            data = [self.get_md5(i) for i in whole_file_list]
+            fw = open("./repkg/md5_list.yaml", 'a', encoding='utf-8')
+            yaml.dump(data, fw)
+            fw.close()
 
 
 if __name__ == '__main__':
-    test = CopyWallpaper("D:/Program Files (x86)/Steam/steamapps/workshop/content/431960", "D:/test1")
+    test = CopyWallpaper("D:/Program Files (x86)/Steam/steamapps/workshop/content/431960", "D:/test")
+    # test = CopyWallpaper("D:/迅雷下载/新建文件夹", "D:/迅雷下载/新建文件夹")
     # 全部类型拷贝
-    test.start_get_wallpaper_file()
+    # test.start_get_wallpaper_file(pkg_only=True, mp4_only=True)
     # 仅图片类型拷贝
-    # test.start_get_wallpaper_file(pkg_only=True)
+    test.start_get_wallpaper_file(pkg_only=True)
     # 仅视频类型拷贝
     # test.start_get_wallpaper_file(mp4_only=True)
+    # 初始化不拷贝文件
+    # test.init_installed_file_list()
